@@ -1,6 +1,9 @@
 package game2048;
 
+import java.awt.image.LookupOp;
 import java.util.Formatter;
+import java.util.List;
+import java.util.Locale;
 import java.util.Observable;
 
 
@@ -109,16 +112,187 @@ public class Model extends Observable {
     public boolean tilt(Side side) {
         boolean changed;
         changed = false;
+        int i ,j , Loop;
+        Tile t;
 
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
+        this.board.setViewingPerspective(side);
+        for (i = 0;i<4;i++){
+            for (j = 0;j < 3;j++){
+                if (this.board.tile(i,j) != null){
+                    changed = true;
+                }
+            }
+        }
+        if (changed){
+            for (i=0;i<4;i=i+1){
+                this.score += columnTile(this.board,i);
+            }
+        }
+        this.board.setViewingPerspective(Side.NORTH);
 
         checkGameOver();
         if (changed) {
             setChanged();
         }
         return changed;
+    }
+
+   /**处理单列**/
+    public static int columnTile(Board b,int column){
+        int NullNumber = checkNull(b,column);
+        int DulplicateNumber = checkColumnDuplicate(b,column);
+        switch (NullNumber) {
+            case 4:
+                return 0;
+            case 3:
+                for (int j = 0; j < 4; j = j + 1) {
+                    if (b.tile(column, j) != null) {
+                        Tile t = b.tile(column, j);
+                        b.move(column, 3, t);
+                    }
+                }
+                return 0;
+            case 2:
+                switch (DulplicateNumber){
+                    case 0:
+                        int k = 3;
+                        for (int j = 3; j >=0; j = j - 1) {
+                            if (b.tile(column, j) != null) {
+                                Tile t = b.tile(column, j);
+                                b.move(column, k, t);
+                                k = k - 1;
+                            }
+                        }
+                        return 0;
+                    case 1:
+                        int Loop = 0;
+                        for (int j = 0; j < 4; j = j + 1) {
+                            if (b.tile(column, j) != null) {
+                                Tile t = b.tile(column, j);
+                                Loop = Loop +1;
+                                b.move(column,3,t);
+                                if(Loop == 2){
+                                    return b.tile(column,3).value();
+                                }
+                            }
+                        }
+                }
+            case 1:
+                if (DulplicateNumber == 0){
+                    int Loop = 3;
+                    for(int k = 3;k >= 0;k--){
+                        if (b.tile(column,k) != null){
+                            Tile t = b.tile(column,k);
+                            b.move(column,Loop,t);
+                            Loop = Loop -1;
+                        }
+                    }
+                    return 0;
+                }else {
+                    return Dulp_1(b,column);
+                }
+            case 0:
+                switch (DulplicateNumber){
+                    case 0:
+                        return 0;
+                    case 1:
+                        return Dulp_1(b,column);
+                    case 2, 3:
+                        return Dulp_2(b,column);
+                }
+        }
+        return 0;
+    }
+
+    /** 2表示只有2个相邻的相等或者3个全相等，3表示有2组2个相等，4表示4个全相等 **/
+    public static int checkColumnDuplicate (Board b ,int column){
+        int DuplicateNumber = 0;
+        for (int j = 0 ;j < 4 ; j = j + 1){
+            for (int k = j+1 ;k < 4;k ++){
+                if((b.tile(column,j)!= null)&&(b.tile(column,k)!= null)){
+                    if (b.tile(column,j).value()==b.tile(column,k).value()){
+                        DuplicateNumber = DuplicateNumber +1 ;
+                        break;
+                    }else {break;}
+                }
+            }
+        }
+        return DuplicateNumber;
+    }
+
+    public static int Dulp_1 (Board b,int column){
+        int Loop = 3;
+        int score = 0;
+        boolean first = true;
+        for (int k = 3;k >= 0;k--){
+            boolean toBeChanged = true;
+            if (b.tile(column,k) != null){
+                for (int j = k-1;j >= 0;j--){
+                    if ((b.tile(column,j) != null) && first){
+                        if (b.tile(column,k).value() == b.tile(column,j).value()){
+                            Tile t = b.tile(column,k);
+                            b.move(column,Loop,t);
+                            t = b.tile(column,j);
+                            b.move(column,Loop,t);
+                            score = b.tile(column,Loop).value();
+                            Loop = Loop -1;
+                            first = false;
+                            toBeChanged = false;
+                        }
+                    }
+                }
+                if (toBeChanged){
+                    Tile t = b.tile(column,k);
+                    b.move(column,Loop,t);
+                    Loop = Loop -1;
+                }
+            }
+        }
+        return score;
+    }
+
+    public static int Dulp_2 (Board b,int column){
+        int Loop = 3;
+        int score = 0;
+        for (int k = 3;k >= 0;k--){
+            boolean toBechanged = true;
+            if (b.tile(column,k) != null){
+                for (int j = k-1;j >= 0;j--){
+                    if (b.tile(column,j) != null){
+                        if (b.tile(column,k).value() == b.tile(column,j).value()){
+                            Tile t = b.tile(column,k);
+                            b.move(column,Loop,t);
+                            t = b.tile(column,j);
+                            b.move(column,Loop,t);
+                            score += b.tile(column,Loop).value();
+                            Loop = Loop -1;
+                            toBechanged = false;
+                        }
+                    }
+                }
+                if (toBechanged){
+                        Tile t = b.tile(column,k);
+                        b.move(column,Loop,t);
+                        Loop = Loop - 1;
+                }
+            }
+        }
+        return score;
+    }
+
+    /**检查一列里有多少个格子填充了数字 **/
+    public static int checkNull (Board b , int column){
+        int j = 0 ;
+        int Nullnumber = 0;
+            for (j = 0 ; j < 4 ; j = j + 1){
+                if(b.tile(column,j)== null){
+                    Nullnumber = Nullnumber +1 ;
+                }
+            }
+        return Nullnumber;
     }
 
     /** Checks if the game is over and sets the gameOver variable
@@ -138,7 +312,15 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
-        return false;
+        int i = 0 , j = 0 ;
+        for(i = 0 ; i < 4 ; i = i + 1){
+            for (j = 0 ; j < 4 ; j = j + 1){
+                if(b.tile(i,j)== null){
+                    return true;
+                }
+            }
+        }
+        return false ;
     }
 
     /**
@@ -148,6 +330,16 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        int i = 0 , j = 0 ;
+        for(i = 0 ; i < 4 ; i = i + 1){
+            for (j = 0 ; j < 4 ; j = j + 1){
+                if(b.tile(i,j)== null){
+                    continue;
+                }else if( b.tile(i,j).value()== MAX_PIECE){
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -159,7 +351,40 @@ public class Model extends Observable {
      */
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
-        return false;
+        int i = 0 , j = 0 ;
+        if (emptySpaceExists(b)){
+            return true;
+        } else {
+            for(i = 0 ; i < 4 ; i = i + 1){
+                for (j = 0 ; j < 4 ; j = j + 1){
+                    //和上一个比较
+                    if (i > 0){
+                        if (b.tile(i,j).value()==b.tile(i-1,j).value()){
+                            return true;
+                        }
+                    }
+                    //和下一个比较
+                    if (i < 3){
+                        if (b.tile(i,j).value()==b.tile(i+1,j).value()){
+                            return true;
+                        }
+                    }
+                    //和左一个比较
+                    if (j > 0){
+                        if (b.tile(i,j).value()==b.tile(i,j-1).value()){
+                            return true;
+                        }
+                    }
+                    //和右一个比较
+                    if (j < 3){
+                        if (b.tile(i,j).value()==b.tile(i,j+1).value()){
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
     }
 
 
